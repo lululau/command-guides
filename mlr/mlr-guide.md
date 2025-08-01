@@ -857,3 +857,138 @@ mlr --csv join -j user_id --lk "name,email" -f users.csv orders.csv
 ```
 
 这些核心动词构成了 Miller 数据处理的基础，掌握它们的用法对于高效使用 Miller 至关重要。 
+
+## 快捷方式和节省击键
+
+Miller 提供了一些快捷方式来减少击键，提高效率。
+
+### 短格式指定符
+- `--c2p` 等同于 `--icsv --opprint`（CSV 输入，美观的表格输出）
+- `--c2j` 等同于 `--icsv --ojson`（CSV 输入，JSON 输出）
+- 类似的有 `--c2t`、`--c2d`、`--c2n`、`--c2x`、`--j2c`、`--j2t` 等，用于常见格式转换。
+
+示例：
+```bash
+mlr --c2p head -n 2 example.csv
+```
+
+### 文件名置前
+- 使用 `--from {文件名}` 将文件名置于命令开头，便于命令历史编辑。
+- 对于多个文件，使用 `--mfrom {文件1} {文件2} --`。
+
+示例：
+```bash
+mlr --c2p --from example.csv sort -nr index then head -n 3
+```
+
+### 最短标志
+- `-c` 等同于 `--csv`
+- `-t` 等同于 `--tsv`
+- `-j` 等同于 `--json`
+
+### .mlrrc 文件
+- 在 `~/.mlrrc` 中设置默认选项，如 `--csv`，则后续命令默认使用 CSV 格式。
+- 示例：将 `--csv` 写入 `~/.mlrrc`，则 `mlr cat example.csv` 默认处理 CSV。
+
+### 脚本和 mlr -s
+- 使用 `-s {脚本文件}` 运行脚本文件中的 Miller 命令。
+- 脚本文件可包含多行命令，便于重复使用复杂操作。
+
+## Miller 编程语言（DSL）
+
+Miller 的 `put` 和 `filter` 动词使用嵌入式领域特定语言（DSL），允许复杂数据转换。
+
+### 记录和字段
+- 使用 `$字段名` 引用输入字段，如 `$cost = $quantity * $rate`。
+- 新字段添加到记录末尾，现有字段就地更新。
+
+### 多行语句
+- 使用分号分隔语句，可跨多行。
+- 注释使用 `#`。
+
+示例：
+```bash
+mlr --c2p put '
+  $cost = $quantity * $rate;  # 计算成本
+  $index *= 100
+' example.csv
+```
+
+### Begin/End 块
+- `begin { ... }` 在处理第一条记录前执行。
+- `end { ... }` 在处理最后一条记录后执行。
+- 用于初始化变量或输出总结。
+
+示例：
+```bash
+mlr --c2p put '
+  begin { @total = 0 }
+  @total += $quantity;
+  $running_total = @total;
+  end { emit @total, "grand_total" }
+' example.csv
+```
+
+### 变量
+- 使用 `@变量名` 定义跨记录变量，如计数器或总和。
+- 支持数组和映射：`@counts[$color] += 1`。
+
+### 用户定义函数
+- 使用 `func` 定义函数。
+- 示例：
+```bash
+func square(x) { return x * x }
+$area = square($side)
+```
+
+### Emit 和 Dump
+- `emit` 输出变量，如 `emit @counts`。
+- `dump` 输出所有变量，用于调试。
+
+### 其他 DSL 特性
+- 支持 if-else、for/while 循环、模式匹配、递归函数等。
+- 内置函数丰富，包括数学、字符串、时间等（详见函数列表）。
+
+## 更多动词示例
+
+### top - 显示最高值
+显示每个指定字段的前 N 个最高值。
+
+示例：
+```bash
+mlr --c2p top -f quantity -n 3 example.csv
+```
+
+### histogram - 创建直方图
+按字段值分桶计数。
+
+示例：
+```bash
+mlr --c2p histogram -f quantity --lo 0 --hi 100 --nbins 10 example.csv
+```
+
+### bar - 创建条形图
+使用字符创建条形图。
+
+示例：
+```bash
+mlr --c2p bar -f quantity -c "#" example.csv
+```
+
+### bootstrap - 引导抽样
+有放回随机抽样。
+
+示例：
+```bash
+mlr --csv bootstrap -n 100 data.csv
+```
+
+### decimate - 抽取记录
+每 N 条记录保留一条。
+
+示例：
+```bash
+mlr --csv decimate -b 5 data.csv
+```
+
+这些特性扩展了 Miller 的功能，允许更复杂的处理和分析。 
